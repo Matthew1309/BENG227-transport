@@ -30,6 +30,8 @@ g = 9.8; % m/s^2
 tcp = 7.32; % s
 Cap_vessel_diam = ;
 
+artery_size_M = readmatrix("phen model params - Sheet1.csv", Range=[2, 4])
+
 %%%%%%%%
 %%% PS1
 %%%%%%%%
@@ -77,4 +79,40 @@ CG9 = CG9 = CG10 ; %
 P9out = P9in + (rhob.*(v9in.^2 - v9out.^2))./2 - rhob .* h .* finout;
 % Small vessels
 P9out = P9in - (128.*mu9.*L9.*Vdot9)./(pi.*Cap_vessel_diam.^4);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Pressure monstrousity
+
+% Constants
+artery_size_M = readmatrix("phen model params - Sheet1.csv", Range=[2, 4]);
+D_9_in = artery_size_M(:,1);
+D_9_out = artery_size_M(:,2);
+D_10_out = artery_size_M(:,3);
+global blood_density; blood_density = 1060; %kg/m^3;
+global H; H = 45;
+global epsilon; epsilon = 1e4;
+global Kacc; Kacc = 1000; % all of them are y-valves
+global Kinf; Kinf = 2; % all of them are y-valves
+
+
+% Functions 
+function output = pressure_out(pressure_in, velocity9_in, velocity9_out, friction_loss)
+    % Representing one vessel, pass this
+    % pressure on the input 
+    % velocity on the input and output that matter
+    % loss of pressure due to friction
+    % it will output one value representing the pressure on the output
+    output = pressure_in + (blood_density*(velocity9_in.^2 - velocity9_out.^2)) ./ 2 - (blood_density .* friction_loss);
+end
+
+
+
+
+
+
 
