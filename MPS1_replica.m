@@ -93,15 +93,16 @@ artery_size_M = readmatrix("phen model params - Sheet1.csv", Range=[2, 4]);
 D_9_in = artery_size_M(:,1);
 D_9_out = artery_size_M(:,2);
 D_10_out = artery_size_M(:,3);
+vessel_length = artery_size_M(:,4);
 global blood_density; blood_density = 1060; %kg/m^3;
 global H; H = 45;
 global epsilon; epsilon = 1e4;
-global Kacc; Kacc = 1000; % all of them are y-valves
-global Kinf; Kinf = 2; % all of them are y-valves
+global K1; K1 = [500, 150, 1000]; % all of them are y-valves
+global Kinf; Kinf = [0.15, 0.5, 2]; % all of them are y-valves
 
 
 % Functions 
-function output = pressure_out(pressure_in, velocity9_in, velocity9_out, friction_loss)
+function output = pressure_out_large_vessel(pressure_in, velocity9_in, velocity9_out, friction_loss)
     % Representing one vessel, pass this
     % pressure on the input 
     % velocity on the input and output that matter
@@ -110,7 +111,44 @@ function output = pressure_out(pressure_in, velocity9_in, velocity9_out, frictio
     output = pressure_in + (blood_density*(velocity9_in.^2 - velocity9_out.^2)) ./ 2 - (blood_density .* friction_loss);
 end
 
+function velocity = velocity(vol_flow_rate, cross_area)
+    % Representing the velocity in one vessel
+    % given the volumetric flow rate in this vessel
+    % and its cross-sectional area, we can compute the 
+    % velocity of the liquid. General function for ins and outs
+    velocity = vol_flow_rate / cross_area;
+end
 
+function friction_loss = friction_loss(darcy_friction_coeff, vessel_length, velocity9_out, velocity10_out, Kacc, Kexp, Kcon)
+    % Passing the darcy coeff for the vessel, the length, velocities, and
+    % several coefficients we can compute the friction loss. Additionally
+    % pass a 3-vector of Kacc terms for the vessel computed in a different
+    % function.
+    middle_term;
+    for i = 1:3
+        middle_term += Kacc(i) * max([velocity9_out, velocity10_out]);
+    end
+
+    friction_loss = (darcy_friction_coeff * vessel_length * velocity9_out) + (middle_term/2) + (Kexp * velocity9_out)/2 + (Kcon*velocity9_out)/2;
+end
+
+function darcy_friction_coeff = darcy_friction_coeff(reynolds_number, diameter9_in)
+    if reynolds_number <= 2000
+        darcy_friction_coeff = 64/reynolds_number;
+    else
+        term1 = epsilon / (diameter9_in/3.71);
+        coef2 = 502/reynolds_number;
+        term3 = 14.5/reynolds_number;
+        darcy_friction_coeff = (-2*log(term1 - coef2*(term1 + term3)) )^-2;
+    end
+end
+
+function Kacc = Kacc(reynolds_number, dapostrophie)
+    Kacc = zeros(3,1);
+    for i = 1:3
+        Kacc(i) = K1(i)/reynolds_number + Kinf(i)*(1+(1/dapostrophie));
+    end
+end
 
 
 
