@@ -91,23 +91,24 @@
 %%%%%%
 % Constants
 %%%%%%
-%%
+%% Initialize constants
+format longg
 artery_size_M = readmatrix("phen model params - Sheet1.csv", Range=[2, 4]);
-D_9_in_M = artery_size_M(:,1);
-D_9_out_M = artery_size_M(:,2);
-D_10_out_M = artery_size_M(:,3);
-vessel_length_M = artery_size_M(:,4);
+D_9_in_M = artery_size_M(:,1) .* 10^-3; % meter units
+D_9_out_M = artery_size_M(:,2) .* 10^-3;
+D_10_out_M = artery_size_M(:,3) .* 10^-3;
+vessel_length_M = artery_size_M(:,4) .* 10^-3;
 
 blood_density = 1060; %kg/m^3;
-H = 45;
+H = 0.45;
 epsilon = 1e4;
-K1 = [500, 150, 1000]; % all of them are y-valves
-Kinf = [0.15, 0.5, 2]; % all of them are y-valves
+K1 = [500; 150; 1000]; % all of them are y-valves
+Kinf = [0.15; 0.5; 2]; % all of them are y-valves
 
 %%%%%%
 % Testing
 %%%%%%
-%%
+%% Climb the xs area branch
 % Compute xs areas
 CSA_9_in_M = cross_sectional_area(D_9_in_M);
 CSA_9_out_M = cross_sectional_area(D_9_out_M);
@@ -117,16 +118,50 @@ CSA_10_out_M = cross_sectional_area(D_10_out_M);
 PC9 = partion_coeff_9(CSA_9_out_M, CSA_10_out_M);
 
 % Compute volumetric flows
-Vol0_9 = 0.7; % m8/blood_density 
+Vol0_9 = 9.52*10^-5; % m8/blood_density (but not really, just m3) I think they messed up 
 Vol_9 = zeros(length(PC9),1);
-
 last_flow = Vol0_9;
-for i = 1:(length(PC9)-1)
+for i = 1:(length(PC9))
     % fprintf('%i\n', i)
     Vol_9(i) = volumetric_flow(PC9(i), last_flow);
     last_flow = Vol_9(i);
 end
-Vol_9
+
+% Compute velocity in tube
+velocity_9in = velocity(Vol_9, CSA_9_in_M); % m/s units
+velocity_10out = velocity(Vol_9, CSA_10_out_M);
+velocity_9out = velocity(Vol_9, CSA_9_out_M);
+
+%% Climb the Bj branch
+Bjs = Bj(D_9_in_M .* 10^3); % Expects input in units of mm;
+Sjs = Sj(Bjs, D_9_in_M .* 10^3);
+apparent_vessel_visc_j = apparent_vessel_viscosity(D_9_in_M .* 10^3);
+vessel_viscosity_j = vessel_viscosity(apparent_vessel_visc_j, Sjs, H);
+reynolds_number_j = reynolds_number(vessel_viscosity_j, velocity_9in, D_9_in_M .* 10^3, blood_density);
+
+%% Climb the D'', Darcy, Kexp/Kcon branches
+dapostrophie_j = dapostrophie(D_9_in_M.*10^3);
+Kacc_j = zeros(length(dapostrophie_j),3);
+for i = 1:length(dapostrophie_j)
+    Kacc_j(i,:) = Kacc(reynolds_number_j(i), dapostrophie_j(i), K1, Kinf);
+end
+
+darcy_friction_coeff_j = darcy_friction_coeff(reynolds_number_j, D_9_in_M .* 10^3, epsilon);
+
+Kexp_j = Kexp(D_9_out_M .* 10^3, D_10_out_M .* 10^3);
+Kcon_j = Kcon(D_9_out_M .* 10^3, D_10_out_M .* 10^3);
+
+friction_loss_j = friction_loss(darcy_friction_coeff_j, vessel_length_M .* 10^3, velocity_9out, velocity_10out, Kacc_j, Kexp_j, Kcon_j)
+
+%% Pressure computation
+pressure_out_j = zeros(length(PC9),1);
+P0_9 = 94.23; %%mmHg
+last_pressure = P0_9;
+for i = 1:(length(PC9))
+    pressure_out_j(i) = pressure_out_large_vessel(last_pressure, velocity_9in(i), velocity_9out(i), friction_loss_j(i), blood_density);
+    last_flow = pressure_out_j(i);
+end
+pressure_out_j
 
 %%%%%%
 % Functions 
@@ -138,7 +173,7 @@ function output = pressure_out_large_vessel(pressure_in, velocity9_in, velocity9
     % velocity on the input and output that matter
     % loss of pressure due to friction
     % it will output one value representing the pressure on the output
-    output = pressure_in + (blood_density*(velocity9_in.^2 - velocity9_out.^2)) ./ 2 - (blood_density .* friction_loss);
+    output = pressure_in + (blood_density.*(velocity9_in.^2 - velocity9_out.^2)) ./ 2 - (blood_density .* friction_loss);
 end
 
 function velocity = velocity(vol_flow_rate, cross_area)
@@ -146,7 +181,7 @@ function velocity = velocity(vol_flow_rate, cross_area)
     % given the volumetric flow rate in this vessel
     % and its cross-sectional area, we can compute the 
     % velocity of the liquid. General function for ins and outs
-    velocity = vol_flow_rate / cross_area;
+    velocity = vol_flow_rate ./ cross_area;
 end
 
 function friction_loss = friction_loss(darcy_friction_coeff, vessel_length, velocity9_out, velocity10_out, Kacc, Kexp, Kcon)
@@ -154,42 +189,41 @@ function friction_loss = friction_loss(darcy_friction_coeff, vessel_length, velo
     % several coefficients we can compute the friction loss. Additionally
     % pass a 3-vector of Kacc terms for the vessel computed in a different
     % function.
-    middle_term;
-    for i = 1:3
-        middle_term += Kacc(i) * max([velocity9_out, velocity10_out]);
+    middle_term = zeros(length(vessel_length),1);
+    for i = 1:length(vessel_length)
+        middle_term(i) = sum( Kacc(i,:) .* max([velocity9_out(i), velocity10_out(i)]) );
     end
-
-    friction_loss = (darcy_friction_coeff * vessel_length * velocity9_out) + (middle_term/2) + (Kexp * velocity9_out)/2 + (Kcon*velocity9_out)/2;
+    friction_loss = (darcy_friction_coeff .* vessel_length .* velocity9_out) + (middle_term./2) + (Kexp .* velocity9_out)./2 + (Kcon.*velocity9_out)./2;
 end
 
 function darcy_friction_coeff = darcy_friction_coeff(reynolds_number, diameter9_in, epsilon)
     if reynolds_number <= 2000
-        darcy_friction_coeff = 64/reynolds_number;
+        darcy_friction_coeff = 64./reynolds_number;
     else
-        term1 = epsilon / (diameter9_in/3.71);
-        coef2 = 502/reynolds_number;
-        term3 = 14.5/reynolds_number;
-        darcy_friction_coeff = (-2*log(term1 - coef2*(term1 + term3)) )^-2;
+        term1 = epsilon ./ (diameter9_in./3.71);
+        coef2 = 502./reynolds_number;
+        term3 = 14.5./reynolds_number;
+        darcy_friction_coeff = (-2.*log(term1 - coef2.*(term1 + term3)) ).^-2;
     end
 end
 
 function Kacc = Kacc(reynolds_number, dapostrophie, K1, Kinf)
     Kacc = zeros(3,1);
     for i = 1:3
-        Kacc(i) = K1(i)/reynolds_number + Kinf(i)*(1+(1/dapostrophie));
+        Kacc(i) = K1(i)./reynolds_number + Kinf(i).*(1+(1./dapostrophie));
     end
 end
 
 function dapostrophie = dapostrophie(vessel_diameter)
-    dapostrophie = 39.37 * vessel_diameter;
+    dapostrophie = 39.37 .* vessel_diameter;
 end
 
 function Kexp = Kexp(vessel_diameter_in, vessel_diameter_out)
-    Kexp = (1-(vessel_diameter_in / vessel_diameter_out)^2)^2;
+    Kexp = (1-(vessel_diameter_in ./ vessel_diameter_out).^2).^2;
 end
 
 function Kcon = Kcon(vessel_diameter_in, vessel_diameter_out)
-    Kexp = 0.5*(1-(vessel_diameter_out / vessel_diameter_in)^2)^2;
+    Kcon = 0.5.*(1-(vessel_diameter_out ./ vessel_diameter_in).^2).^2;
 end
 
 function area = cross_sectional_area(vessel_diameter)
@@ -197,26 +231,28 @@ function area = cross_sectional_area(vessel_diameter)
 end
 
 function reynolds_number = reynolds_number(vessel_viscosity, velocity_9_in, vessel_diameter_in, blood_density)
-    reynolds_number = (blood_density*velocity_9_in*vessel_diameter_in) / vessel_viscosity;
+    reynolds_number = (blood_density.*velocity_9_in.*vessel_diameter_in) ./ vessel_viscosity;
 end
 
 function vessel_viscosity = vessel_viscosity(apparent_vessel_visc, Sj, H)
-    vessel_viscosity = 1 + ((apparent_vessel_visc - 1) * (((1-H)^Sj)/(0.55^Sj)) );
+    vessel_viscosity = 1 + ((apparent_vessel_visc - 1) .* (((1-H).^Sj)./(0.55.^Sj)) );
 end
 
 function apparent_vessel_viscosity = apparent_vessel_viscosity(vessel_diameter)
-    term1 = 220 * exp(-1.3 * vessel_diameter * 10^-6);
-    term2 = 2.44 * exp(-0.06 * (vessel_diameter * 10^-6)^0.645);
+    term1 = 220 .* exp(-1.3 .* vessel_diameter .* 10^-6);
+    term2 = 2.44 .* exp(-0.06 .* (vessel_diameter .* 10^-6).^0.645);
     apparent_vessel_viscosity = 3.2 + term1 - term2;
 end
 
 function S = Sj(Bj, vessel_diameter_in)
-    term1 = 0.8 + exp(-0.075*vessel_diameter_in * 10^-6);
-    S = (term1 * (Bj-1)) + Bj;
+    term1 = 0.8 + exp(-0.075 .* vessel_diameter_in .* 10^-6);
+    S = (term1 .* (Bj-1)) + Bj;
 end
 
 function B = Bj(vessel_diameter_in)
-    B = (1 + vessel_diameter_in^12 * 10^-6);
+    % Original paper wants diameter in units of micrometers
+    % Our authors I believe already converted to units of mm implicityly
+    B = (1 + (vessel_diameter_in.^12 .* 10^-6)).^-1;
 end
 
 function vol_flow = volumetric_flow(partion_coeff, flow_coming_in)
