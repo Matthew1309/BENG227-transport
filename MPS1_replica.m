@@ -11,74 +11,74 @@
 % of the system.
 % Authors: Matthew Kozubov, Cal McKinney
 
-% Definition of variables
-mdot1 = ;
-mdot2 = ;
-mdot3 = 9.52e-5; % m^3/s
-mdot4 = ;
-
-CG1 = ;
-CG2 = ;
-CG3 = ;
-
-rho4 = rho3 = rhob = 1050; % kg/m^3
-
-Vdot1 = ;
-Vdot2 = ;
-Vdot3 = ;
-g = 9.8; % m/s^2
-tcp = 7.32; % s
-Cap_vessel_diam = ;
-
-artery_size_M = readmatrix("phen model params - Sheet1.csv", Range=[2, 4])
-
-%%%%%%%%
-%%% PS1
-%%%%%%%%
-% Flow out of right atrium is equal to inflow with vena inflows
-mdot3 = mdot1 + mdot2; 
-CG3 = (CG1.*Vdot1 + CG2.*Vdot2) ./ Vdot3;
-
-%%%%%%%%
-%%% PS2 and 3
-%%%%%%%%
-mdot4 = mdot3;
-CG4 = CG3;
-
-% Mechanical energy balance
-P3./rho3 + g.*z3 + (v3.^2)/2 + nabla .* What = P4 ./ rho4 + g.*z4 + (v4.^2)/2;
-What = (P4 - P3) ./ rhob;
-
-%%%%%%%%
-%%% PS4
-%%%%%%%%
-mdot7 = mdot4;
-mdot6 = mdot5;
-
-CG5 = CG6 = 0;
-Vdot4 = Vdot7; 
-CG7 = CG4;
-
-%%%%%%%%
-%%% PS5 and 6
-%%%%%%%%
-mdot8 = mdot7; 
-CG8 = CG7; 
-What = (P8 - P7)./rhob;
-
-%%%%%%%%
-%%% PS7 and 8
-%%%%%%%%
-% Pretend only one vessel
-Vdot9input = Vdot9output + Vdot10output;
-Vdot9output = PC .* Vdot9input;
-Vdot10output = (1-PC) .* Vdot9input;
-
-CG9 = CG9 = CG10 ; %
-% Big vessels
-P9out = P9in + (rhob.*(v9in.^2 - v9out.^2))./2 - rhob .* h .* finout;
-% Small vessels
-P9out = P9in - (128.*mu9.*L9.*Vdot9)./(pi.*Cap_vessel_diam.^4);
+% % Definition of variables
+% mdot1 = ;
+% mdot2 = ;
+% mdot3 = 9.52e-5; % m^3/s
+% mdot4 = ;
+% 
+% CG1 = ;
+% CG2 = ;
+% CG3 = ;
+% 
+% rho4 = rho3 = rhob = 1050; % kg/m^3
+% 
+% Vdot1 = ;
+% Vdot2 = ;
+% Vdot3 = ;
+% g = 9.8; % m/s^2
+% tcp = 7.32; % s
+% Cap_vessel_diam = ;
+% 
+% artery_size_M = readmatrix("phen model params - Sheet1.csv", Range=[2, 4])
+% 
+% %%%%%%%%
+% %%% PS1
+% %%%%%%%%
+% % Flow out of right atrium is equal to inflow with vena inflows
+% mdot3 = mdot1 + mdot2; 
+% CG3 = (CG1.*Vdot1 + CG2.*Vdot2) ./ Vdot3;
+% 
+% %%%%%%%%
+% %%% PS2 and 3
+% %%%%%%%%
+% mdot4 = mdot3;
+% CG4 = CG3;
+% 
+% % Mechanical energy balance
+% P3./rho3 + g.*z3 + (v3.^2)/2 + nabla .* What = P4 ./ rho4 + g.*z4 + (v4.^2)/2;
+% What = (P4 - P3) ./ rhob;
+% 
+% %%%%%%%%
+% %%% PS4
+% %%%%%%%%
+% mdot7 = mdot4;
+% mdot6 = mdot5;
+% 
+% CG5 = CG6 = 0;
+% Vdot4 = Vdot7; 
+% CG7 = CG4;
+% 
+% %%%%%%%%
+% %%% PS5 and 6
+% %%%%%%%%
+% mdot8 = mdot7; 
+% CG8 = CG7; 
+% What = (P8 - P7)./rhob;
+% 
+% %%%%%%%%
+% %%% PS7 and 8
+% %%%%%%%%
+% % Pretend only one vessel
+% Vdot9input = Vdot9output + Vdot10output;
+% Vdot9output = PC .* Vdot9input;
+% Vdot10output = (1-PC) .* Vdot9input;
+% 
+% CG9 = CG9 = CG10 ; %
+% % Big vessels
+% P9out = P9in + (rhob.*(v9in.^2 - v9out.^2))./2 - rhob .* h .* finout;
+% % Small vessels
+% P9out = P9in - (128.*mu9.*L9.*Vdot9)./(pi.*Cap_vessel_diam.^4);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -88,21 +88,51 @@ P9out = P9in - (128.*mu9.*L9.*Vdot9)./(pi.*Cap_vessel_diam.^4);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Pressure monstrousity
 
+%%%%%%
 % Constants
+%%%%%%
+%%
 artery_size_M = readmatrix("phen model params - Sheet1.csv", Range=[2, 4]);
-D_9_in = artery_size_M(:,1);
-D_9_out = artery_size_M(:,2);
-D_10_out = artery_size_M(:,3);
-vessel_length = artery_size_M(:,4);
-global blood_density; blood_density = 1060; %kg/m^3;
-global H; H = 45;
-global epsilon; epsilon = 1e4;
-global K1; K1 = [500, 150, 1000]; % all of them are y-valves
-global Kinf; Kinf = [0.15, 0.5, 2]; % all of them are y-valves
+D_9_in_M = artery_size_M(:,1);
+D_9_out_M = artery_size_M(:,2);
+D_10_out_M = artery_size_M(:,3);
+vessel_length_M = artery_size_M(:,4);
 
+blood_density = 1060; %kg/m^3;
+H = 45;
+epsilon = 1e4;
+K1 = [500, 150, 1000]; % all of them are y-valves
+Kinf = [0.15, 0.5, 2]; % all of them are y-valves
 
+%%%%%%
+% Testing
+%%%%%%
+%%
+% Compute xs areas
+CSA_9_in_M = cross_sectional_area(D_9_in_M);
+CSA_9_out_M = cross_sectional_area(D_9_out_M);
+CSA_10_out_M = cross_sectional_area(D_10_out_M);
+
+% Compute partition coefficients
+PC9 = partion_coeff_9(CSA_9_out_M, CSA_10_out_M);
+
+% Compute volumetric flows
+Vol0_9 = 0.7; % m8/blood_density 
+Vol_9 = zeros(length(PC9),1);
+
+last_flow = Vol0_9;
+for i = 1:(length(PC9)-1)
+    % fprintf('%i\n', i)
+    Vol_9(i) = volumetric_flow(PC9(i), last_flow);
+    last_flow = Vol_9(i);
+end
+Vol_9
+
+%%%%%%
 % Functions 
-function output = pressure_out_large_vessel(pressure_in, velocity9_in, velocity9_out, friction_loss)
+%%%%%%
+%%
+function output = pressure_out_large_vessel(pressure_in, velocity9_in, velocity9_out, friction_loss, blood_density)
     % Representing one vessel, pass this
     % pressure on the input 
     % velocity on the input and output that matter
@@ -132,7 +162,7 @@ function friction_loss = friction_loss(darcy_friction_coeff, vessel_length, velo
     friction_loss = (darcy_friction_coeff * vessel_length * velocity9_out) + (middle_term/2) + (Kexp * velocity9_out)/2 + (Kcon*velocity9_out)/2;
 end
 
-function darcy_friction_coeff = darcy_friction_coeff(reynolds_number, diameter9_in)
+function darcy_friction_coeff = darcy_friction_coeff(reynolds_number, diameter9_in, epsilon)
     if reynolds_number <= 2000
         darcy_friction_coeff = 64/reynolds_number;
     else
@@ -143,14 +173,56 @@ function darcy_friction_coeff = darcy_friction_coeff(reynolds_number, diameter9_
     end
 end
 
-function Kacc = Kacc(reynolds_number, dapostrophie)
+function Kacc = Kacc(reynolds_number, dapostrophie, K1, Kinf)
     Kacc = zeros(3,1);
     for i = 1:3
         Kacc(i) = K1(i)/reynolds_number + Kinf(i)*(1+(1/dapostrophie));
     end
 end
 
+function dapostrophie = dapostrophie(vessel_diameter)
+    dapostrophie = 39.37 * vessel_diameter;
+end
 
+function Kexp = Kexp(vessel_diameter_in, vessel_diameter_out)
+    Kexp = (1-(vessel_diameter_in / vessel_diameter_out)^2)^2;
+end
 
+function Kcon = Kcon(vessel_diameter_in, vessel_diameter_out)
+    Kexp = 0.5*(1-(vessel_diameter_out / vessel_diameter_in)^2)^2;
+end
 
+function area = cross_sectional_area(vessel_diameter)
+    area = 0.25 .* (pi .* vessel_diameter.^2);
+end
 
+function reynolds_number = reynolds_number(vessel_viscosity, velocity_9_in, vessel_diameter_in, blood_density)
+    reynolds_number = (blood_density*velocity_9_in*vessel_diameter_in) / vessel_viscosity;
+end
+
+function vessel_viscosity = vessel_viscosity(apparent_vessel_visc, Sj, H)
+    vessel_viscosity = 1 + ((apparent_vessel_visc - 1) * (((1-H)^Sj)/(0.55^Sj)) );
+end
+
+function apparent_vessel_viscosity = apparent_vessel_viscosity(vessel_diameter)
+    term1 = 220 * exp(-1.3 * vessel_diameter * 10^-6);
+    term2 = 2.44 * exp(-0.06 * (vessel_diameter * 10^-6)^0.645);
+    apparent_vessel_viscosity = 3.2 + term1 - term2;
+end
+
+function S = Sj(Bj, vessel_diameter_in)
+    term1 = 0.8 + exp(-0.075*vessel_diameter_in * 10^-6);
+    S = (term1 * (Bj-1)) + Bj;
+end
+
+function B = Bj(vessel_diameter_in)
+    B = (1 + vessel_diameter_in^12 * 10^-6);
+end
+
+function vol_flow = volumetric_flow(partion_coeff, flow_coming_in)
+    vol_flow = partion_coeff * flow_coming_in;
+end
+
+function PC = partion_coeff_9(cross_sec_9_out, cross_sec_10_out)
+    PC = cross_sec_9_out ./ (cross_sec_9_out + cross_sec_10_out);
+end
