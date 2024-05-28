@@ -29,7 +29,7 @@ theta = [k3, k7];
 
 % intial conditions and ode solver
 % artery, glyco, EC, adipo
-y0 = [6.3e-3,8e-4,4e-3,4.7e-3]; %femto-mol/um^3
+y0 = [5.73e-3,8e-4,4e-3,4.7e-3]; %femto-mol/um^3
 tspan = linspace(0,2450);
 opts = odeset('RelTol',1e-5,'AbsTol',1e-7);
 % How to pass theta to ode45
@@ -41,7 +41,7 @@ yvalstrue = [repelem(6.3e-3,length(yvalstrue));...
              yvalstrue.*10^-3];
 
 %% 
-% Following tutorial for optimizing params 
+% Following tutorial for optimizing params if I know all my variables
 % https://www.mathworks.com/help/optim/ug/fit-ode-problem-based-least-squares.html
 r = optimvar('theta', 2, 'LowerBound', 1e-2, 'UpperBound', 300);
 myfcn = fcn2optimexpr(@RtoODE,r,tspan,y0);
@@ -51,18 +51,37 @@ r0.theta = theta;
 [rsol,sumsq] = solve(prob,r0)
 save('myData.mat', 'rsol', 'sumsq');
 
-%% 
-theta = rsol.theta
-[t,Code45] = ode45( @(t,y)matcal_system(t,y,theta), tspan, y0, opts);
+[t,Code45] = ode45( @(t,y)matcal_system(t,y,rsol.theta), tspan, y0, opts);
 plot(t,Code45)
 
-% yvalstrue = transpose(yvalstrue)
+%% 
+% % Now I only know the adipose tissue and am optimizing for that only
+r = optimvar('theta', 2, 'LowerBound', 1e-2, 'UpperBound', 300);
+myfcn2 = fcn2optimexpr(@RtoODE2, r, tspan, y0);
+yvals2 = yvalstrue([4],:);
+obj2 = sum(sum(myfcn2 - yvals2).^2);
+prob2 = optimproblem("Objective",obj2);
+r0.theta = theta;
+[rsol2,sumsq2] = solve(prob2,r0)
+rsol2.theta
+
 %%
+[t,Code45] = ode45( @(t,y)matcal_system(t,y,rsol2.theta), tspan, y0, opts);
+figure(1)
 hold on
-i = 4;
-plot(t,Code45(:,i))
-plot(t,yvalstrue(:,i))
-ylim([0,6.5e-3]);
+h1 = plot(t,Code45(:,1));
+h3 = plot(t,Code45(:,2));
+h4 = plot(t,Code45(:,3));
+h5 = plot(t,Code45(:,4));
+h2 = plot(t, yvals2, 'o', 'MarkerEdgeColor', 'magenta', 'LineStyle', 'none');
+legend([h1,h3,h4,h5,h2], ["Artery", "Glyco", "EC", "Adipose", "Auth data"]);
+hold off
+
+figure(2)
+hold on
+h1 = plot(t,Code45(:,4));
+h2 = plot(t, yvals2, 'o', 'MarkerEdgeColor', 'magenta', 'LineStyle', 'none');
+legend([h1,h2], "Fit", "Auth data");
 hold off
 
 %% Functions
@@ -95,4 +114,10 @@ end
 function solpts = RtoODE(theta,tspan,y0)
     sol = ode45( @(t,y)matcal_system(t,y,theta), tspan, y0);
     solpts = deval(sol,tspan);
+end
+
+function solpts = RtoODE2(theta,tspan,y0)
+    sol = ode45( @(t,y)matcal_system(t,y,theta), tspan, y0);
+    solpts = deval(sol,tspan);
+    solpts = solpts(4,:); % Just the adipose tissue
 end
